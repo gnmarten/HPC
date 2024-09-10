@@ -86,3 +86,63 @@ PyTorch/1.13.1-foss-2022a-CUDA-11.7.0
 PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 ```
 While the difference between torch 1 and 2 is huge (and mandated by the requirements of the script you need to run), it is not always necessary to look for exact correspondence in numbers. Higher numbers (eg CUDA 12.5) might be backwards compatible with CUDA 12.1.1. If the toolchain does not offer what you need, you can request it.
+
+## Understanding the job file in .sh format
+
+```bash
+#!/bin/bash
+#PBS -N x_jobname
+#PBS -m ae
+#PBS -l walltime=2:59:00
+#PBS -l nodes=1:ppn=12:gpus=1
+#PBS -l mem=50gb
+```
+This part sits on top. Despite it having been commented out, it is being read when committed via the CLI. The time it takes for your "job" to execute depends  on the values you enter here, e.g. walltime=2:59:00 is shorter than the default 7.59.00. The standard values are like this, but then it might takes days for your job to execute. 
+```bash
+#!/bin/bash
+#PBS -N x_jobname
+#PBS -m ae
+#PBS -l walltime=7:59:00
+#PBS -l nodes=1:ppn=32:gpus=1
+#PBS -l mem=250gb
+```
+Continue as follows. Note that I created a directory python_packages on scratch in order to store user-specific packages. Generally, the HPC will know it's way around, but some locations need to be declared explicityly via "export". Remember to replace all mentions of "vsc42730" with your own login.
+```bash
+# Load required modules
+
+module load foss/2023a
+module load CUDA/12.1.1
+module load cuDNN/8.9.2.26-CUDA-12.1.1
+module load Python/3.11.3-GCCcore-12.3.0
+module load PyTorch/2.1.2-foss-2023a
+module load PyTorch-Lightning/2.1.3-foss-2023a
+module load Transformers/4.39.3-gfbf-2023a
+
+# Setup cache and install directories on scratch (keep your home drive from overflowing)
+export XDG_CACHE_HOME=/kyukon/scratch/gent/427/vsc42730/cache
+export PIP_CACHE_DIR=/kyukon/scratch/gent/427/vsc42730/pip_cache
+export PYTHONUSERBASE=/kyukon/scratch/gent/427/vsc42730/python_packages
+export PATH=$PYTHONUSERBASE/bin:$PATH
+# Add the path to your local PyTorch CUDA libraries
+export LD_LIBRARY_PATH=/kyukon/scratch/gent/427/vsc42730/python_packages/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
+
+# Also add the CUDA libraries from the module
+export LD_LIBRARY_PATH=/apps/gent/RHEL8/zen3-ampere-ib/software/CUDA/12.1.1/lib64:$LD_LIBRARY_PATH
+export PYTHONPATH=/kyukon/scratch/gent/427/vsc42730/python_packages/lib/python3.11/site-packages:$PYTHONPATH
+
+# Upgrade pip and resolve dependency issues
+pip install --user --upgrade pip
+pip install --user mlxtend numba whisperx 
+pip install --user pyannote.audio --extra-index-url https://download.pytorch.org/whl/cu121 #very particular to the task I was implementing, you might not need this
+#pip uninstall -y safetensors
+#pip install --user safetensors #problem arises because of loading the transformers' specific version. Might be solved by loading another version.
+#module list | grep cuda
+#module show CUDA/12.1.1 #loading CUDA is tricky, use this for troubleshooting, it will show the location and availability
+
+# Run the script
+cd $VSC_HOME
+python x.py
+
+exit 0
+```
+The setup above is needed to run the Whisper transcription large model (3Gb) on large audio files. In other words, this setup is only needed if you need the equivalnet of a monster gaming PC with lots of CPU and GPU power. You only need this if you need to do the heavy lifting that your laptop or desktop does not allow for. Out of memory errors are due to the lack of RAM memory and GPU power (laptops only have 4GB or none).
