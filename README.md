@@ -73,7 +73,7 @@ module load PyTorch/1.12.0-foss-2022a-CUDA-11.7.0
 then you need to select "Jupyter Notebook 6.4.0 GCCcore 11.3.0 IPython 8.5.0" in het WebGui, because "GCCcore-11.3.0" corresponds to "foss-2022a". Your options are determined by the cluster that you want to use. 
 In order to find out what modules are available on what cluster, you need to access the command line (either in the WebGUI or via SSH) and look up as the error message indicates:
 ```bash
-module load PyTorch/
+module spider PyTorch/
 ```
 This will then show sth like
 ```bash
